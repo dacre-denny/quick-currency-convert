@@ -72,7 +72,7 @@ currentText : ''
            { currentText }
         </Text>
         <OCRView style={{ width : 150, height : 150, borderWidth: 5, borderColor: '#101111'  }} onTextDetected={ text => {
-          debugger
+           
           this.setState({ currentText : text.nativeEvent.text  })
           } }  />
         <Text style={styles.instructions}>
