@@ -9,17 +9,34 @@ import React, { Component } from 'react';
 import { PropTypes } from 'react';
 import { requireNativeComponent, NativeModules } from 'react-native';
 
-var iface = {
-  name: 'OCRView',
-  propTypes: {
-    // src: PropTypes.string,
-    borderRadius: PropTypes.number,
+class OCRViewComponent extends Component {
+
+    constructor(props) {
+        super(props);
+        this.onTextDetected = this.onTextDetected.bind(this);
+    }
+
+    onTextDetected(event) {
+      debugger
+        if(!this.props.onTextDetected) {
+            return;
+        }
+        this.props.onTextDetected(event.nativeEvent);
+    }
+
+    render() {
+        return <OCRView {...this.props} onTextDetected={this.onTextDetected} />;
+    }
+}
+
+OCRViewComponent.propTypes = {
+
+    onTextDetected: PropTypes.func,
     // resizeMode: PropTypes.oneOf(['cover', 'contain', 'stretch']),
     ...View.propTypes // include the default view properties
-  },
-};
+}
 
-const OCRView = requireNativeComponent('OCRView', iface);
+const OCRView = requireNativeComponent('OCRView', OCRViewComponent, { nativeOnly : { onChange : true }});
 
 const OCRAndroid = NativeModules.OCRAndroid;
 
@@ -33,16 +50,34 @@ import {
 
 export default class QuickCurrencyConvert extends Component {
 
-  render() {
+    constructor(props) {
+        super(props);
+
+        this.state = {
+currentText : ''
+        }
+    }
+
+  render() { 
+
+    const { currentText } = this.state
+
     return (
       <View style={styles.container}>
         <Button onPress={ () => { debugger; NativeModules.OCRAndroid.start('dacre',1000) } } title='Toast'/>
         <Text style={styles.welcome}>
-          Welcome to React Native!
+          Welcome to creepy reader app:
         </Text>
-        <OCRView style={{ width : 150, height : 150, borderWidth: 5, borderColor: '#101111'  }}  />
+        <Text style={styles.welcome}>
+           { currentText }
+        </Text>
+        <OCRView style={{ width : 150, height : 150, borderWidth: 5, borderColor: '#101111'  }} onTextDetected={ text => {
+          debugger
+          this.setState({ currentText : text.nativeEvent.text  })
+          } }  />
         <Text style={styles.instructions}>
-          To get started, edxit index.android.js
+          I SEE!! ... { currentText }
+          
         </Text>
         <Text style={styles.instructions}>
           Double tap Rx on your keyboard to reload,{'\n'}

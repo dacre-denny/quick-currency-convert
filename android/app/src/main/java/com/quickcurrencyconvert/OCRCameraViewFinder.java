@@ -6,6 +6,9 @@ import android.hardware.Camera;
 import android.util.Log;
 import android.view.TextureView;
 
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+
 /**
  * Created by Dacre on 11/06/2017.
  */
@@ -21,12 +24,12 @@ public class OCRCameraViewFinder extends TextureView implements TextureView.Surf
     private boolean _isStopping;
     private boolean isStarted;
     private Camera _camera;
-    private float mFingerSpacing;
+    private BlockingQueue<byte[]> mOCRQueue;
 
     public OCRCameraViewFinder(Context context) {
         super(context);
 
-
+        mOCRQueue = new LinkedBlockingQueue<byte[]>();
     }
 
     public void aquireCamera() {
@@ -43,6 +46,8 @@ public class OCRCameraViewFinder extends TextureView implements TextureView.Surf
             parameters.setPreviewSize(previewSize.width, previewSize.height);
 
             camera.setParameters(parameters);
+
+            camera.setPreviewCallback(this);
 
             _camera = camera;
 
@@ -75,6 +80,9 @@ public class OCRCameraViewFinder extends TextureView implements TextureView.Surf
     @Override
     public void onPreviewFrame(byte[] bytes, Camera camera) {
 
+        if(mOCRQueue!=null && bytes != null){
+            boolean addedToQueue = mOCRQueue.offer(bytes);
+        }
     }
 
     @Override
