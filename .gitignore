@@ -57,3 +57,5 @@ freeline_project_description.json
 # Extras
 .vscode
 .bat
+
+node_modules/
