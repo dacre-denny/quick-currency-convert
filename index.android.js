@@ -108,6 +108,83 @@ class CurrencyButton extends Component {
   }
 }
 
+class State {
+
+    getCurrencies() {
+try {
+      var currencies = AsyncStorage.getItem('currencies')
+
+      if(!currencies) {
+
+        currencies = [    
+          {
+            code : 'USD',
+            symbol : '$',
+            label : 'US Dollars',
+            display : 'United States Dollars'
+          }, {
+            code :'GBP',
+            symbol : '£',
+            label : 'Pound',
+            display : 'British Pound'
+          }, {
+            code : 'NZD',
+            symbol : '$',
+            label : 'NZ Dollars',
+            display : 'New Zealand Dollars'
+          }, {
+            code : 'CAD',
+            symbol : '$',
+            label : 'Canadian Dollars',
+            display : 'Canadian Dollars'
+          }, {
+            code : 'AUD',
+            symbol : '$',
+            label : 'Australian Dollars',
+            display : 'Australian Dollars'
+          }, {
+            code : 'CNY',
+            symbol : '¥',
+            label : 'Chinese Yuan',
+            display : 'Chinese Yuan'
+          }
+        ]
+  
+        AsyncStorage.setItem('currencies', currencies)
+      }
+      
+      return currencies
+    } catch(exception) {
+  
+}
+    }
+
+    fetchCurrencies() {
+
+      const currencies = getCurrencies()
+
+      return fetch('http://api.fixer.io/latest?base=USD&symbols=' + currencies.map(currency => currency.code).join(','))
+      .then(response => response.ok ? response.json() : Promise.reject('Error getting exchange rates'))
+      .then(json => {
+
+        currencies.forEach(currency => {
+          
+          const rate = parseFloat(json.rates[currency.code])
+
+          if(!isNaN(rate)) {
+            currency.rate = rate.toFixed(2)
+          }
+        })        
+
+        AsyncStorage.setItem('currencies', currencies)
+      })
+    }
+
+    getByCode(code) {
+
+//        const currencies = await AsyncStorage.getItem('currencies')
+    }
+}
 
 export default class QuickCurrencyConvert extends Component {
 
@@ -143,11 +220,6 @@ export default class QuickCurrencyConvert extends Component {
 
         this.state.from = this.state.currencies[0]
         this.state.to = this.state.currencies[1]
-    }
-
-    downloadCurrencies() {
-
-      fetch('http://api.fixer.io/latest?base=USD')
     }
 
     addMatches(matches) {
@@ -244,6 +316,7 @@ export default class QuickCurrencyConvert extends Component {
       currentText,
       isScanning,
       bestMatch,
+      scanMatches,
       from,
       from : {
         symbol
@@ -263,9 +336,11 @@ export default class QuickCurrencyConvert extends Component {
 
         <View style={{ flexGrow : 1, alignItems : 'flex-start', justifyContent : 'flex-end', backgroundColor : '#001100' }}>
            <OCRView style={{alignSelf: 'stretch' , flex : 1 }} onTextDetected={ event => this.addMatches(event.nativeEvent.matches) } />
-          <Text style={{ position : 'absolute', bottom : 10, left : 10, backgroundColor : '#ffffff', color: '#28363d', padding : 8, fontSize : 14, borderRadius : 7, borderTopRightRadius : 0 }}>
-            Best match  { (isScanning && !bestMatch) ? 'Looking for price tag..' : (symbol + bestMatch) }
+          {
+            isScanning && <Text style={{ position : 'absolute', bottom : 10, left : 10, backgroundColor : '#ffffff', color: '#28363d', padding : 8, fontSize : 14, borderRadius : 7, borderTopRightRadius : 0 }}>
+            { (!!bestMatch) ? `Found ${(symbol + bestMatch)}` : `Looking for price tag..` }
           </Text>
+          }
         </View>        
 
         <View style={{ flexDirection : 'column' }}>
