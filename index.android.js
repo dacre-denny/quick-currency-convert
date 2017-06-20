@@ -8,6 +8,10 @@ import React, { Component } from 'react';
 
 import { PropTypes } from 'react';
 import { requireNativeComponent, NativeModules } from 'react-native';
+import {
+  StackNavigator,
+} from 'react-navigation';
+
 
 class OCRViewComponent extends Component {
 
@@ -47,7 +51,8 @@ import {
   Button,
   Image,
   View,
-  TouchableOpacity 
+  TouchableOpacity,
+  FlatList
 } from 'react-native';
 
 const CurrencyPanelStyle = StyleSheet.create({
@@ -89,27 +94,20 @@ class ScanButton extends Component {
   }
 }
 
-class EditButton extends Component {
+class CurrencyButton extends Component {
 
   render() {
 
-    return <TouchableOpacity style={{ backgroundColor : '#991199', padding : 10 }}>
-        <Image style={ { width : 20, height : 20 }} source={ require('./imgs/pencil.png') } />
+    const { currency, onPress } = this.props
+    const label = (currency.label || 'Unset').toUpperCase()
+
+    return <TouchableOpacity style={{ backgroundColor : '#222222', padding : 7, borderRadius : 2, flexDirection : 'row' }} onPress={ () => onPress() }>
+        <Text style={{ color : '#ffffff', fontWeight : 'bold' }} title='US Dollars' onPress={ () => navigate('CurrencyPicker', { name: 'Jane' }) } >{ label }</Text>
+        <Image style={{ marginLeft : 10, width : 18, height : 18 }} source={ require('./imgs/pencil.png') } />
       </TouchableOpacity>
   }
 }
 
-class StatusPopover extends Component {
-
-  render() {
-
-    return <View style={{ flexGrow : 1, alignItems : 'flex-start', justifyContent : 'flex-end', backgroundColor : '#001100' }}>
-          <Text style={{ backgroundColor : '#ffffff', color: '#28363d', margin : 10, padding : 8, fontSize : 14, borderRadius : 7, borderTopRightRadius : 0 }}>
-            Best match $1100.00
-          </Text>
-        </View>
-  }
-}
 
 export default class QuickCurrencyConvert extends Component {
 
@@ -119,24 +117,111 @@ export default class QuickCurrencyConvert extends Component {
         this.state = {
 
           isScanning : false,
-          matches : [],
+          bestMatch : 0,
+          scanMatches : [],
 
-currentText : ''
+          from : '',
+          to : '',
+
+          currencies : [            
+            {
+              id : 0,
+              label : 'US Dollars',
+              display : 'United States Dollars',
+              symbol : '$',
+              rate : 1.00
+            },
+            {
+              id : 1,
+              label : 'NZ Dollars',
+              display : 'New Zealand Dollars',
+              symbol : '$',
+              rate : 1.33
+            }
+          ]
         }
+
+        this.state.from = this.state.currencies[0]
+        this.state.to = this.state.currencies[1]
+    }
+
+    downloadCurrencies() {
+
+      fetch('http://api.fixer.io/latest?base=USD')
+    }
+
+    addMatches(matches) {
+
+      if(!matches) return
+
+      const { isScanning, scanMatches } = this.state
+      if(!isScanning) return
+
+      const mapMatches = {}
+
+      scanMatches.forEach(m => {
+        mapMatches[ m.value ] = m
+      })
+
+      matches
+      .map(value => value.replace(/o/gi, '0'))
+      .map(value => value.replace(/i/gi, '1'))
+      .map(value => value.replace(/s/gi, '5'))
+      .map(value => value.replace(/z/gi, '2'))
+      .map(value => value.replace(/G/g, '6'))
+      .map(value => value.replace(/B/g, '3'))
+      .map(value => value.replace(/A/g, '4'))
+      .map(value => parseFloat(value))
+      .filter(value => !isNaN(value))
+      .map(value => value.toFixed(2))
+      .forEach(value => {
+        console.log('val:',value,'float:', parseFloat(value),'isNan:', isNaN(parseFloat(value)))
+        const mapMatch = mapMatches[value]
+
+        if(mapMatch) {
+
+          mapMatch.freq ++;
+        }
+        else {
+
+          mapMatches[value] = { freq : 1, value : value }
+        }
+      })      
+
+      scanMatches.length = 0
+
+      for(var value in mapMatches) {
+
+        scanMatches.push(mapMatches[value])
+      }
+
+      const bestMatch = scanMatches.reduce((p, v) => p.freq > v.freq ? p : v, { freq : 0, value : 0 }).value
+
+      this.setState({ scanMatches, bestMatch })
+      //if(/^\$*\d|.+$/gi.test('$1.23')) return 
     }
 
     startScanning() {
       this.setState({
         isScanning : true,
-        matches : []
+        bestMatch : 0,
+        scanMatches : []
       })
     }
 
     stopScanning() {
       this.setState({
-        isScanning : false,
-        matches : []
+        isScanning : false
       })
+    }
+
+    convertCurrency(amount) {
+      
+      const { from, to } = this.state
+
+      if(!from || !to) return '-';
+
+      return to.symbol + ((amount / from.rate) * to.rate).toFixed(2)
     }
 
     toggleScanning() {
@@ -153,42 +238,58 @@ currentText : ''
 
   render() { 
 
+    const { navigation : { navigate } } = this.props
+
     const { 
       currentText,
-      isScanning
+      isScanning,
+      bestMatch,
+      from,
+      from : {
+        symbol
+      },
+      to,
+      to : {
+        display
+      }
+
      } = this.state
 
+     //const bestMatch = scanMatches.reduce((p, v) => p.freq > v.freq, { freq : 0, match : 0 })
+     const conversion = this.convertCurrency(bestMatch)
+     
     return (
       <View style={{ flex : 1, flexDirection : 'column', justifyContent : 'flex-start', backgroundColor : '#28363d' }}>
-        
-        <StatusPopover />
+
+        <View style={{ flexGrow : 1, alignItems : 'flex-start', justifyContent : 'flex-end', backgroundColor : '#001100' }}>
+           <OCRView style={{alignSelf: 'stretch' , flex : 1 }} onTextDetected={ event => this.addMatches(event.nativeEvent.matches) } />
+          <Text style={{ position : 'absolute', bottom : 10, left : 10, backgroundColor : '#ffffff', color: '#28363d', padding : 8, fontSize : 14, borderRadius : 7, borderTopRightRadius : 0 }}>
+            Best match  { (isScanning && !bestMatch) ? 'Looking for price tag..' : (symbol + bestMatch) }
+          </Text>
+        </View>        
 
         <View style={{ flexDirection : 'column' }}>
           <View style={{ flexDirection : 'row', justifyContent : 'space-between', alignItems : 'center',  paddingBottom : 10, margin : 10, borderBottomColor : '#4c5961', borderBottomWidth : 1 }}>
-            {/*<View style={{ flexDirection : 'row', justifyContent : 'flex-start' }}>
-              <Text style={{ color : '#ffffff', fontSize : 16 }}>US Dollars to NZ Dollars</Text> 
-            </View>
-            <Button color='#cccccc' color='#222222' title='Change' onPress={ () => {} } />*/}
-
-            <Button color='#222222' title='US Dollars' onPress={ () => {} } />
+            
+            <Button color='#222222' title='US Dollars' onPress={ () => navigate('CurrencyPicker', { name: 'Jane' }) } />
+              {/*<CurrencyButton currency={from} onPress={ () => navigate('CurrencyPicker', { name: 'Jane' }) } />*/}
             <Image style={ { width : 30, height : 30 }} source={ require('./imgs/arrow.png') } />
+            {/*<CurrencyButton currency={to} onPress={ () => navigate('CurrencyPicker', { name: 'Jane' }) } />*/}
             <Button color='#222222' title='NZ Dollars' onPress={ () => {} } />
               
           </View>
           <View style={{   flexDirection : 'column', justifyContent : 'center', alignItems : 'center',  paddingBottom : 10  }}>
-            <Text style={{ fontSize : 42, color : '#ffffff', fontFamily : 'sans-serif-light' }}>$100.00</Text> 
-            <Text style={{ fontSize : 16, color : '#a2b0b8', fontFamily : 'sans-serif' }}>New Zealand Dollars</Text> 
+            <Text style={{ fontSize : 42, color : '#ffffff', fontFamily : 'sans-serif-light' }}>{ conversion }</Text> 
+            <Text style={{ fontSize : 16, color : '#a2b0b8', fontFamily : 'sans-serif' }}>{ display }</Text> 
           </View>
         </View>
           <ScanButton isScanning={isScanning} onPress={ () => this.toggleScanning() } />
-
-        {/*
-        <OCRView style={{ width : 150, height : 150, borderWidth: 5, borderColor: '#101111'  }} onTextDetected={ text => {
-           
-          this.setState({ currentText : text.nativeEvent.text  })
-          } }  />
-          */}
-          
+         <View style={{ flexDirection : 'row', justifyContent : 'space-between', alignItems : 'center', padding : 10, paddingTop : 0 }}>
+            
+            <Text style={{ fontSize : 14, color : '#a2b0b8', fontFamily : 'sans-serif-light' }}>Currencies updated yesterday</Text> 
+            <Button color='#28363d' title='Refresh' onPress={ () => navigate('CurrencyPicker', { name: 'Jane' }) } />
+              
+          </View>
 
  
       </View>
@@ -216,4 +317,26 @@ const styles = StyleSheet.create({
   }
 });
 
-AppRegistry.registerComponent('QuickCurrencyConvert', () => QuickCurrencyConvert);
+class CurrencyPickerScreen extends Component {
+    
+  render() {
+    const { navigate } = this.props.navigation;
+    
+    return <View style={{ flex : 1, flexDirection : 'column' }}>
+      <Text>Select source currency</Text>
+      <FlatList data={[
+      1,2,3,4,5,
+      6,7,8,9,10
+    ]} 
+    renderItem={ ({item}) => <Text key={item} style={{ fontSize : 45 }}>{ item }</Text> } />
+    </View>
+  }
+}
+const App = StackNavigator({
+  Home: { screen: QuickCurrencyConvert },
+  CurrencyPicker: { screen: CurrencyPickerScreen },
+}, {
+  headerMode : 'none'
+});
+
+AppRegistry.registerComponent('QuickCurrencyConvert', () => App);

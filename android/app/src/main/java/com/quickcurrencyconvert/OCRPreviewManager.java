@@ -7,10 +7,10 @@ import android.util.SparseArray;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.widget.RelativeLayout;
-import android.widget.TextView;
 
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.Callback;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.SimpleViewManager;
@@ -65,22 +65,9 @@ public class OCRPreviewManager extends SimpleViewManager<RelativeLayout> {
         return REACT_CLASS;
     }
 
-    Camera _camera;
-    SurfaceHolder _surfaceHolder;
     CameraSource mCameraSource;
-
     OcrDetectorProcessor mOcrDetectorProcessor;
 
-//
-//    @ReactProp(name = "onTextDetected", customType = "func")
-//    public void onTextDetected(Callback cb) {
-//
-//
-//        if(mOcrDetectorProcessor != null) {
-//
-//            mOcrDetectorProcessor.setmCallback(cb);
-//        }
-//    }
 @Nullable
 @Override
 public Map<String, Object> getExportedCustomDirectEventTypeConstants() {
@@ -126,7 +113,7 @@ final ThemedReactContext fReactContext = reactContext;
                 new CameraSource.Builder(reactContext, textRecognizer)
                         .setFacing(CameraSource.CAMERA_FACING_BACK)
                         .setRequestedPreviewSize(1280, 1024)
-                        .setRequestedFps(15.0f)
+                        .setRequestedFps(25.0f)
                         .setFlashMode(useFlash ? Camera.Parameters.FLASH_MODE_TORCH : null)
                         .setFocusMode(autoFocus ? Camera.Parameters.FOCUS_MODE_CONTINUOUS_PICTURE : null)
                         .build();
@@ -134,11 +121,6 @@ final ThemedReactContext fReactContext = reactContext;
 
 
         final RelativeLayout container = new RelativeLayout(reactContext);
-        TextView textView = new TextView(reactContext);
-        textView.setText("hello world888");
-        RelativeLayout.LayoutParams lp = new RelativeLayout.LayoutParams(960, 150);
-        container.addView(textView, lp);
-
 
         if(mOcrDetectorProcessor != null) {
 
@@ -146,13 +128,14 @@ final ThemedReactContext fReactContext = reactContext;
                 @Override
                 public void invoke(Object... args) {
 
+                    WritableArray array = Arguments.createArray();
+                    for(Object arg : args) {
+                        array.pushString(String.valueOf(arg));
+                    }
+
                     WritableMap event = Arguments.createMap();
-                    event.putString("text", args[0].toString());
-                    /*
-                    event.putInt("day", date.getDay());
-                    event.putInt("month", date.getMonth());
-                    event.putInt("year", date.getYear());
-                    */
+                    event.putArray("matches", array);
+
                     fReactContext.getJSModule(RCTEventEmitter.class).receiveEvent(container.getId(), "onTextDetected", event);
                 }
             });
@@ -166,22 +149,8 @@ final ThemedReactContext fReactContext = reactContext;
 
                 try {
 
-
                     mCameraSource.start(surfaceHolder);
 
-                    /*
-                    Camera camera = Camera.open(Camera.CameraInfo.CAMERA_FACING_BACK);
-                    Camera.Parameters parameters = camera.getParameters();
-
-                    Camera.Size previewSize = parameters.getSupportedPreviewSizes().get(0);
-
-                    parameters.setPreviewSize(previewSize.width, previewSize.height);
-
-                    camera.setParameters(parameters);
-                    camera.setPreviewDisplay(surfaceHolder);
-                    camera.startPreview();
-                    _camera = camera;
-                    */
                 }
                 catch (Exception e) {
 
@@ -233,21 +202,6 @@ final ThemedReactContext fReactContext = reactContext;
         });
         container.addView(surfaceView);
 
-
-
-        _surfaceHolder = surfaceHolder;
-
         return container;
-
-      //  return new OCRView(reactContext);
     }
-
-
-/*
-    @ReactProp(name = "onPrice")
-    public void setOnPrice(ReactImageView view, Callback callback) {
-
-       // callback.invoke(0);
-    }
-    */
 }
